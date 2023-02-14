@@ -1,76 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import AddQuestion from './Questions/AddQuestion';
+import React, { useState, useEffect } from "react";
+import { fetchQuestion } from "./api";
 
-function App() {
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questions, setQuestions] = useState([]);
-  const [conclusion, setConclusion] = useState(null);
+const App = () => {
+  const [question, setQuestion] = useState(null);
   const [context, setContext] = useState([]);
-  const [conclArray, setConclArray] = useState([])
+  const [initialState, setInitialState] = useState(true);
+  const [yesState, setYesState] = useState(null);
+  const [conclusion, setConclusion] = useState(null);
 
   useEffect(() => {
-    fetch('http://localhost:3001/questions')
-      .then(res => res.json())
-      .then(data => setQuestions(data))
-      .catch(err => console.error(err));
+    const requestBody = {
+      questionId: 'q1',
+      initialState: initialState,
+    }
+    // Fetch initial question when the component is mounted
+    fetchQuestion(requestBody)
+      .then(response => {
+        setQuestion(response.data);
+        setInitialState(false);
+      })
+      .catch(error => {
+        console.error(error);
+      });
   }, []);
 
   useEffect(() => {
-    fetch('http://localhost:3001/conclusions')
-      .then(res => res.json())
-      .then(data => setConclArray(data))
-      .catch(err => console.error(err));
-  }, []);
+    if (yesState !== null)
+      setContext(prevContext => prevContext.concat(question.answers[`${yesState ? 'yes' : 'no'}`].context))
+  }, [yesState])
 
-  const handleYesClick = questionId => {
-    const question = questions.find(q => q.id === questionId);
-    const nextQuestion = questions.find(q => q.id === question.answers.yes.question_id);
-    if (nextQuestion) {
-      setContext([...context, question.answers.yes.context]);
-      setCurrentQuestion(nextQuestion);
-    } else {
-      setConclusion(findConclusion(context));
+  useEffect(() => {
+    if (context.length !== 0)
+      handleAnswer()
+  }, [context])
+
+  const handleAnswer = () => {
+
+    if (question) {
+      const requestBody = {
+        questionId: question.id,
+        answer: `${yesState ? "yes" : "no"}`,
+        context: context,
+        initialState: initialState
+      };
+
+      fetchQuestion(requestBody)
+        .then(response => {
+          setYesState(null)
+          const nextQuestion = response.data.question;
+          if (nextQuestion) {
+            setQuestion(nextQuestion);
+          }
+          else {
+            setConclusion(response.data.conclusion)
+          }
+        })
+        .catch(error => {
+          console.error(error);
+        });
     }
-  };
-
-  const handleNoClick = questionId => {
-    const question = questions.find(q => q.id === questionId);
-    const nextQuestion = questions.find(q => q.id === question.answers.no.question_id);
-    if (nextQuestion) {
-      setContext([...context, question.answers.no.context]);
-      setCurrentQuestion(nextQuestion);
-    } else {
-      setConclusion(findConclusion(context));
-    }
-  };
-
-  const findConclusion = context => {
-    const conclusion = conclArray.find((c) => {
-      return context.every((contextItem) => c.context.includes(contextItem))
-    })
-    return conclusion ? conclusion.conclusion : "No conclusion found";
   };
 
   return (
     <div>
       {conclusion ? (
-        <h2>Conclusion: {conclusion}</h2>
-      ) : currentQuestion ? (
-        <div key={currentQuestion.id}>
-          <h2>{currentQuestion.question}</h2>
-          <button onClick={() => handleYesClick(currentQuestion.id)}>Yes</button>
-          <button onClick={() => handleNoClick(currentQuestion.id)}>No</button>
+        <div>
+          <h2>Conclusion: {conclusion}</h2>
+        </div>
+      ) : question ? (
+        <div>
+          <div key={question.id}>
+            <h2>{question.question}</h2>
+            <button onClick={() => { setYesState(true) }}>Yes</button>
+            <button onClick={() => { setYesState(false) }}>No</button>
+          </div>
         </div>
       ) : (
         <div>
-          <h2>Please start the quiz</h2>
-          <button onClick={() => setCurrentQuestion(questions[0])}>Start</button>
+          <h2>Loading</h2>
         </div>
       )}
-
-      <AddQuestion />
     </div>
   );
-}
+
+};
 
 export default App;

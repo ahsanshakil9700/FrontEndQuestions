@@ -1,6 +1,5 @@
 # FrontEndQuestions
 
-# BackendAppQuestions
 This is a full stack application, which consists of a backend server built with Node.js using the Express framework and a front-end application built with React.js.
 
 The backend part uses Express to set up an HTTP server and listens on port 3002. The server uses the cors middleware to handle Cross-Origin Resource Sharing (CORS), and the express.json() middleware to parse JSON data in the body of incoming requests.
